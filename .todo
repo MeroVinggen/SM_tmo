@@ -1,35 +1,21 @@
-- clear pythong, pygame and etc.
+- does render till first action is made if connect after stream started, but does if connect before stream started
+- does 720/1080 switcher works? 
+  - add 480
+- status is wrong - wrint connected but android app could even no be launched
+  - should show "awaiting connection"
+  - same when connection is lost and trying to re-connect
 
-- it doesn't stream till receive any first data (till something changed on phone), but should start any way and get initial screen as start
-- at some point app crash randomly, crash log below
+- update UI and app work to be closer to let view - main window and phone screan separate windows, phone in size of the phone, see what else
+- hide notifications
 
-- setting for broadcast quality and don't show notifications
-- UI on both sides (preffered web UI of possible)
-- can we make it a single executable for pc side?
+- how to include web to exe to pack with the proj, or it will be portable if can't?
 
-- will move from python to go make it more performant?
-  - don't if all works good and it will inc the app hard to debug
+- publish to github
 
-
-
-  crush
-
-FATAL EXCEPTION: Thread-3
-Process: com.example.meroscreenmirror, PID: 26113
-java.net.SocketException: Broken pipe
-  at java.net.SocketOutputStream.socketWrite0(Native Method)
-  at java.net.SocketOutputStream.socketWrite(SocketOutputStream.java:116)
-  at java.net.SocketOutputStream.write(SocketOutputStream.java:144)
-  at com.example.meroscreenmirror.ScreenCaptureService.startStreaming(ScreenCaptureService.kt:107)
-  at com.example.meroscreenmirror.ScreenCaptureService.onStartCommand$lambda$0(ScreenCaptureService.kt:59)
-  at com.example.meroscreenmirror.ScreenCaptureService.$r8$lambda$6HGw28MF2BfaENRlBpk5KqAuKhg(Unknown Source:0)
-  at com.example.meroscreenmirror.ScreenCaptureService$$ExternalSyntheticLambda0.run(D8$$SyntheticClass:0)
-  at java.lang.Thread.run(Thread.java:1564)
-2026-02-27 21:38:00.090  2261-3545  UAH_JNI                 system_server                        E  uah_event_acquire ! cmdId: 0 ,strPkg: com.example.meroscreenmirror, strIdent: com.android.server.wm, timeout: 600
-2026-02-27 21:38:00.091 26113-26113 callGcSupression        com.example.meroscreenmirror         D  java.lang.NullPointerException: Attempt to invoke virtual method 'java.lang.Object java.lang.reflect.Method.invoke(java.lang.Object, java.lang.Object[])' on a null object reference
-2026-02-27 21:38:00.101 26113-26168 Process                 com.example.meroscreenmirror         I  Sending signal. PID: 26113 SIG: 9
 
 
 
 About:
 - launch with: py -3.12 receiver.py
+- build with go: go build -o screenmirror.exe .
+  - or: go build ./...
