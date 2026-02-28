@@ -91,18 +91,18 @@ class MainActivity : ComponentActivity() {
         }
 
         @JavascriptInterface
-        fun confirmPair(code: String, name: String): String {
+        fun confirmPair(code: String, name: String, pcName: String): String {
             // Send pair request to PC via HTTP (through ADB tunnel)
             return try {
                 val deviceName = name.ifEmpty { android.os.Build.MODEL }
-                val url = "http://127.0.0.1:${ScreenCaptureService.HTTP_PORT}/api/pair/confirm?code=$code&name=${java.net.URLEncoder.encode(deviceName, "UTF-8")}"
+                val url = "http://127.0.0.1:${ScreenCaptureService.HTTP_PORT}/api/pair/confirm?code=$code&name=${java.net.URLEncoder.encode(name, "UTF-8")}&pcName=${java.net.URLEncoder.encode(pcName, "UTF-8")}"
                 val request = Request.Builder().url(url).post(FormBody.Builder().build()).build()
                 val response = httpClient.newCall(request).execute()
                 val body = response.body?.string() ?: "{\"ok\":false,\"msg\":\"no response\"}"
                 val json = JSONObject(body)
                 if (json.optBoolean("ok")) {
                     // Save paired device
-                    savePairedDevice(json.optString("id"), json.optString("name", deviceName))
+                    savePairedDevice(json.optString("id"), json.optString("pcName", pcName))
                 }
                 body
             } catch (e: Exception) {

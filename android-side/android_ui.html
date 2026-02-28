@@ -170,7 +170,7 @@
       outline: none;
     }
 
-    #name-input {
+    .name-input {
       background: #2a2a38;
       border: 1px solid #3a3a50;
       border-radius: 8px;
@@ -261,7 +261,8 @@
     <h2>Pair with PC</h2>
     <p>Enter the 6-digit code shown<br>in the Screen Mirror PC app.</p>
     <input id="code-input" type="number" maxlength="6" placeholder="000000" oninput="onCodeInput(this)" />
-    <input id="name-input" type="text" placeholder="PC name (optional)" />
+    <input id="name-input" class="name-input" type="text" placeholder="Your phone name (optional)" />
+    <input id="pc-name-input" class="name-input" type="text" placeholder="PC name (optional)" />
     <button class="tb-btn primary" onclick="confirmPair()" style="width:240px;padding:14px">Pair</button>
     <span id="pair-msg"></span>
     <button class="tb-btn" onclick="Android.startQrScan()">Scan QR</button>
@@ -350,11 +351,12 @@
     function confirmPair() {
       const code = document.getElementById('code-input').value.trim();
       const name = document.getElementById('name-input').value.trim();
+      const pcName = document.getElementById('pc-name-input').value.trim();
       if (code.length !== 6) {
         showPairMsg('Enter a 6-digit code', false);
         return;
       }
-      const result = JSON.parse(Android.confirmPair(code, name));
+      const result = JSON.parse(Android.confirmPair(code, name, pcName));
       if (result.ok) {
         showPairMsg('Paired successfully!', true);
         setTimeout(() => showDevices(), 1000);

@@ -110,6 +110,7 @@ func (s *Server) handlePairConfirm(w http.ResponseWriter, r *http.Request) {
 	}
 	code := r.URL.Query().Get("code")
 	name := r.URL.Query().Get("name")
+	pcName := r.URL.Query().Get("pcName")
 
 	s.mu.Lock()
 	valid := s.pairCode != "" && s.pairCode == code
@@ -144,9 +145,9 @@ func (s *Server) handlePairConfirm(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	device := s.devices.Add(name, serial)
+	device := s.devices.Add(pcName, serial)
 	w.Header().Set("Content-Type", "application/json")
-	fmt.Fprintf(w, `{"ok":true,"id":"%s","name":"%s"}`, device.ID, device.Name)
+	fmt.Fprintf(w, `{"ok":true,"id":"%s","name":"%s","pcName":"%s"}`, device.ID, device.Name, pcName)
 }
 
 // ── Stream endpoints ──────────────────────────────────────────────────────────
