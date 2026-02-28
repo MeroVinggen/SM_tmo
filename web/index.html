@@ -408,7 +408,7 @@
           <input class="device-name" value="${d.name}" onblur="renameDevice('${d.id}', this.value)" />
           <span class="device-serial">${d.serial || ''}</span>
           <div class="device-actions">
-            <button class="tb-btn primary" ${d.online ? '' : 'disabled style="opacity:0.4;cursor:not-allowed"'} onclick="startStream('${d.id}', '${d.name}')">Start</button>
+            <button class="tb-btn primary" ${d.online ? '' : 'disabled style="opacity:0.4;cursor:not-allowed"'} onclick="startStream('${d.id}', '${d.name}')">Open</button>
             <button class="tb-btn danger" onclick="removeDevice('${d.id}')">Remove</button>
           </div>
         `;

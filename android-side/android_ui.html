@@ -335,15 +335,9 @@
             <div class="sub">${d.online ? 'Online' : 'Offline'}</div>
           </div>
           <button class="tb-btn primary" onclick="showStream('${d.id}','${d.name}')">Open</button>
-          <button class="tb-btn danger" onclick="removeDevice('${d.id}')">✕</button>
         `;
         el.appendChild(card);
       });
-    }
-
-    function removeDevice(id) {
-      Android.removePairedDevice(id);
-      loadDevices();
     }
 
     // ── Pairing ──────────────────────────────────────────────────────────────────

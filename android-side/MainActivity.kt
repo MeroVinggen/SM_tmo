@@ -108,11 +108,6 @@ class MainActivity : ComponentActivity() {
                 "{\"ok\":false,\"msg\":\"${e.message}\"}"
             }
         }
-
-        @JavascriptInterface
-        fun removePairedDevice(id: String) {
-            this@MainActivity.removePairedDevice(id)
-        }
     }
 
     private fun savePairedDevice(id: String, name: String) {
@@ -125,17 +120,6 @@ class MainActivity : ComponentActivity() {
         }
         arr.put(obj)
         prefs.edit().putString(KEY_DEVICES, arr.toString()).apply()
-    }
-
-    private fun removePairedDevice(id: String) {
-        val stored = prefs.getString(KEY_DEVICES, "[]") ?: "[]"
-        val arr = JSONArray(stored)
-        val newArr = JSONArray()
-        for (i in 0 until arr.length()) {
-            val obj = arr.getJSONObject(i)
-            if (obj.optString("id") != id) newArr.put(obj)
-        }
-        prefs.edit().putString(KEY_DEVICES, newArr.toString()).apply()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
