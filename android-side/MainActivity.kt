@@ -23,7 +23,10 @@ class MainActivity : ComponentActivity() {
     private lateinit var webView: WebView
     private lateinit var projectionManager: MediaProjectionManager
     private lateinit var prefs: SharedPreferences
-    private val httpClient = OkHttpClient()
+    private val httpClient = OkHttpClient.Builder()
+        .connectTimeout(250, java.util.concurrent.TimeUnit.MILLISECONDS)
+        .readTimeout(250, java.util.concurrent.TimeUnit.MILLISECONDS)
+        .build()
 
     companion object {
         const val ACTION_STATUS = "com.example.meroscreenmirror.STATUS"
@@ -70,6 +73,7 @@ class MainActivity : ComponentActivity() {
         @JavascriptInterface
         fun getPairedDevices(): String {
             val stored = prefs.getString(KEY_DEVICES, "[]") ?: "[]"
+            val start = System.currentTimeMillis()
             return try {
                 val request = Request.Builder()
                     .url("http://127.0.0.1:${ScreenCaptureService.HTTP_PORT}/api/devices")
@@ -79,7 +83,6 @@ class MainActivity : ComponentActivity() {
                 prefs.edit().putString(KEY_DEVICES, body).apply()
                 body
             } catch (e: Exception) {
-                // PC offline — mark all stored devices as offline
                 val arr = JSONArray(stored)
                 for (i in 0 until arr.length()) arr.getJSONObject(i).put("online", false)
                 arr.toString()
