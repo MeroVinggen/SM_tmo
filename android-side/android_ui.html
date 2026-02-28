@@ -2,81 +2,276 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Screen Mirror</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
+
         body {
           background: #0f0f13;
           color: #e0e0e0;
           font-family: 'Segoe UI', sans-serif;
+          height: 100vh;
           display: flex;
           flex-direction: column;
-          height: 100vh;
+          overflow: hidden;
+        }
+
+        /* ── Toolbar ── */
+        #toolbar {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          padding: 14px 16px;
+          background: #1a1a22;
+          border-bottom: 1px solid #2a2a38;
+          flex-shrink: 0;
+        }
+        #toolbar h1 { font-size: 16px; font-weight: 600; color: #fff; margin-right: auto; }
+
+        .tb-btn {
+          padding: 8px 18px;
+          border-radius: 8px;
+          border: none;
+          font-size: 14px;
+          font-weight: 500;
+          cursor: pointer;
+          background: #2a2a38;
+          color: #e0e0e0;
+        }
+        .tb-btn.primary { background: #3ddc84; color: #0f0f13; }
+        .tb-btn.danger  { background: #e85252; color: #fff; }
+
+        /* ── Views ── */
+        .view { display: none; flex: 1; flex-direction: column; overflow-y: auto; padding: 20px 16px; gap: 14px; }
+        .view.active { display: flex; }
+
+        /* ── Devices ── */
+        .section-title { font-size: 12px; color: #666; text-transform: uppercase; letter-spacing: 1px; }
+
+        .device-card {
+          background: #1a1a22;
+          border: 1px solid #2a2a38;
+          border-radius: 10px;
+          padding: 16px;
+          display: flex;
+          align-items: center;
+          gap: 12px;
+        }
+        .device-dot { width: 10px; height: 10px; border-radius: 50%; background: #555; flex-shrink: 0; }
+        .device-dot.online { background: #3ddc84; box-shadow: 0 0 5px #3ddc84; }
+        .device-info { flex: 1; }
+        .device-info .name { font-size: 15px; font-weight: 500; }
+        .device-info .sub  { font-size: 12px; color: #666; margin-top: 2px; }
+
+        .empty-state {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 12px;
+          color: #444;
+          text-align: center;
+        }
+        .empty-state p { font-size: 14px; line-height: 1.5; }
+
+        /* ── Pair view ── */
+        #view-pair {
           align-items: center;
           justify-content: center;
           gap: 24px;
         }
-        h1 { font-size: 22px; font-weight: 600; color: #fff; }
-        #status-row {
-          display: flex;
+        #view-pair h2 { font-size: 18px; font-weight: 600; }
+        #view-pair p  { font-size: 14px; color: #888; text-align: center; line-height: 1.6; }
+
+        #code-input {
+          background: #2a2a38;
+          border: 1px solid #3a3a50;
+          border-radius: 8px;
+          color: #e0e0e0;
+          font-size: 28px;
+          font-weight: 700;
+          letter-spacing: 6px;
+          text-align: center;
+          padding: 14px 20px;
+          width: 240px;
+          outline: none;
+        }
+
+        #name-input {
+          background: #2a2a38;
+          border: 1px solid #3a3a50;
+          border-radius: 8px;
+          color: #e0e0e0;
+          font-size: 15px;
+          padding: 12px 16px;
+          width: 240px;
+          outline: none;
+        }
+
+        #pair-msg { font-size: 13px; min-height: 18px; }
+        #pair-msg.ok  { color: #3ddc84; }
+        #pair-msg.err { color: #e85252; }
+
+        /* ── Stream view ── */
+        #view-stream {
           align-items: center;
-          gap: 10px;
+          justify-content: center;
+          gap: 24px;
         }
-        #status-dot {
-          width: 12px; height: 12px;
-          border-radius: 50%;
-          background: #555;
-          transition: background 0.3s;
-        }
+        #stream-pc-name { font-size: 18px; font-weight: 600; }
+
+        #status-row { display: flex; align-items: center; gap: 10px; }
+        #status-dot { width: 12px; height: 12px; border-radius: 50%; background: #555; }
         #status-dot.streaming { background: #3ddc84; box-shadow: 0 0 6px #3ddc84; }
         #status-dot.connected { background: #f0a500; }
         #status-text { font-size: 15px; color: #aaa; }
-        select {
-          background: #2a2a38;
-          color: #e0e0e0;
-          border: 1px solid #3a3a50;
-          border-radius: 6px;
-          padding: 10px 16px;
-          font-size: 15px;
-          width: 200px;
-          outline: none;
-        }
-        button {
-          width: 200px;
-          padding: 12px;
-          border-radius: 6px;
-          border: none;
-          font-size: 15px;
-          font-weight: 600;
-          cursor: pointer;
-          background: #3ddc84;
-          color: #0f0f13;
-          transition: background 0.2s;
-        }
-        button.disconnect { background: #e85252; color: #fff; }
     </style>
 </head>
 <body>
-<h1>📱 Screen Mirror</h1>
-<div id="status-row">
-    <div id="status-dot"></div>
-    <span id="status-text">Idle</span>
+
+<div id="toolbar">
+    <h1>📱 Screen Mirror</h1>
+    <button class="tb-btn" id="btn-back" style="display:none" onclick="showDevices()">← Back</button>
+    <button class="tb-btn primary" id="btn-pair-open" onclick="showPair()">+ Pair</button>
 </div>
-<select id="res-select">
-    <option value="480">480p</option>
-    <option value="720" selected>720p</option>
-    <option value="1080">1080p</option>
-</select>
-<button id="btn" onclick="toggle()">Connect</button>
+
+<!-- Devices view -->
+<div class="view active" id="view-devices">
+    <span class="section-title">Paired PCs</span>
+    <div id="device-list"></div>
+    <div class="empty-state" id="empty-state" style="display:none">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <rect x="2" y="3" width="20" height="14" rx="2"/>
+            <path d="M8 21h8M12 17v4"/>
+        </svg>
+        <p>No paired PCs yet.<br>Click "+ Pair" to connect to a PC.</p>
+    </div>
+</div>
+
+<!-- Pair view -->
+<div class="view" id="view-pair">
+    <h2>Pair with PC</h2>
+    <p>Enter the 6-digit code shown<br>in the Screen Mirror PC app.</p>
+    <input id="code-input" type="number" maxlength="6" placeholder="000000" oninput="onCodeInput(this)" />
+    <input id="name-input" type="text" placeholder="PC name (optional)" />
+    <button class="tb-btn primary" onclick="confirmPair()" style="width:240px;padding:14px">Pair</button>
+    <span id="pair-msg"></span>
+</div>
+
+<!-- Stream view -->
+<div class="view" id="view-stream">
+    <span id="stream-pc-name">PC</span>
+    <div id="status-row">
+        <div id="status-dot"></div>
+        <span id="status-text">Idle</span>
+    </div>
+    <button class="tb-btn primary" id="btn-stream" onclick="toggleStream()" style="width:200px;padding:14px;font-size:16px">Start</button>
+</div>
 
 <script>
-    let connected = false;
+    let streaming = false;
+    let activePcId = null;
+    let activePcName = '';
 
-    function toggle() {
-      if (!connected) {
-        const res = document.getElementById('res-select').value;
-        Android.startCapture(res);
+    // ── Views ───────────────────────────────────────────────────────────────────
+
+    function showDevices() {
+      setView('view-devices');
+      document.getElementById('btn-pair-open').style.display = '';
+      document.getElementById('btn-back').style.display = 'none';
+      loadDevices();
+    }
+
+    function showPair() {
+      setView('view-pair');
+      document.getElementById('btn-pair-open').style.display = 'none';
+      document.getElementById('btn-back').style.display = '';
+      document.getElementById('pair-msg').textContent = '';
+      document.getElementById('code-input').value = '';
+      document.getElementById('name-input').value = '';
+    }
+
+    function showStream(id, name) {
+      activePcId = id;
+      activePcName = name;
+      document.getElementById('stream-pc-name').textContent = name;
+      setView('view-stream');
+      document.getElementById('btn-pair-open').style.display = 'none';
+      document.getElementById('btn-back').style.display = '';
+      updateStreamBtn();
+    }
+
+    function setView(id) {
+      document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+      document.getElementById(id).classList.add('active');
+    }
+
+    // ── Devices ─────────────────────────────────────────────────────────────────
+
+    function loadDevices() {
+      const devices = Android.getPairedDevices();
+      const list = JSON.parse(devices);
+      const el = document.getElementById('device-list');
+      const empty = document.getElementById('empty-state');
+      el.innerHTML = '';
+      if (list.length === 0) { empty.style.display = 'flex'; return; }
+      empty.style.display = 'none';
+      list.forEach(d => {
+        const card = document.createElement('div');
+        card.className = 'device-card';
+        card.innerHTML = `
+          <div class="device-dot ${d.online ? 'online' : ''}"></div>
+          <div class="device-info">
+            <div class="name">${d.name}</div>
+            <div class="sub">${d.online ? 'Online' : 'Offline'}</div>
+          </div>
+          <button class="tb-btn primary" onclick="showStream('${d.id}','${d.name}')">Open</button>
+          <button class="tb-btn danger" onclick="removeDevice('${d.id}')">✕</button>
+        `;
+        el.appendChild(card);
+      });
+    }
+
+    function removeDevice(id) {
+      Android.removePairedDevice(id);
+      loadDevices();
+    }
+
+    // ── Pairing ──────────────────────────────────────────────────────────────────
+
+    function onCodeInput(el) {
+      if (el.value.length > 6) el.value = el.value.slice(0, 6);
+    }
+
+    function confirmPair() {
+      const code = document.getElementById('code-input').value.trim();
+      const name = document.getElementById('name-input').value.trim();
+      if (code.length !== 6) {
+        showPairMsg('Enter a 6-digit code', false);
+        return;
+      }
+      const result = JSON.parse(Android.confirmPair(code, name));
+      if (result.ok) {
+        showPairMsg('Paired successfully!', true);
+        setTimeout(() => showDevices(), 1000);
+      } else {
+        showPairMsg(result.msg || 'Pairing failed', false);
+      }
+    }
+
+    function showPairMsg(msg, ok) {
+      const el = document.getElementById('pair-msg');
+      el.textContent = msg;
+      el.className = ok ? 'ok' : 'err';
+    }
+
+    // ── Stream ───────────────────────────────────────────────────────────────────
+
+    function toggleStream() {
+      if (!streaming) {
+        Android.startCapture();
       } else {
         Android.stopCapture();
       }
@@ -85,18 +280,19 @@
     function setStatus(status) {
       document.getElementById('status-dot').className = status;
       document.getElementById('status-text').textContent = status.charAt(0).toUpperCase() + status.slice(1);
-      if (status === 'streaming') {
-        connected = true;
-        document.getElementById('btn').textContent = 'Disconnect';
-        document.getElementById('btn').classList.add('disconnect');
-        document.getElementById('res-select').disabled = true;
-      } else if (status === 'idle') {
-        connected = false;
-        document.getElementById('btn').textContent = 'Connect';
-        document.getElementById('btn').classList.remove('disconnect');
-        document.getElementById('res-select').disabled = false;
-      }
+      streaming = status === 'streaming';
+      updateStreamBtn();
     }
+
+    function updateStreamBtn() {
+      const btn = document.getElementById('btn-stream');
+      btn.textContent = streaming ? 'Stop' : 'Start';
+      btn.className = 'tb-btn ' + (streaming ? 'danger' : 'primary');
+      btn.style.cssText = 'width:200px;padding:14px;font-size:16px';
+    }
+
+    // ── Init ─────────────────────────────────────────────────────────────────────
+    loadDevices();
 </script>
 </body>
 </html>

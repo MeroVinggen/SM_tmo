@@ -22,8 +22,7 @@ class ScreenCaptureService : Service() {
     private var virtualDisplay: VirtualDisplay? = null
     private var mediaCodec: MediaCodec? = null
     private var socket: Socket? = null
-    private var initialWidth = 1280
-    private var initialHeight = 720
+    private var controlSocket: Socket? = null
 
     @Volatile private var restarting = false
     @Volatile private var currentWidth = 1280
@@ -33,9 +32,10 @@ class ScreenCaptureService : Service() {
     companion object {
         const val EXTRA_RESULT_CODE = "result_code"
         const val EXTRA_RESULT_DATA = "result_data"
-        const val EXTRA_RESOLUTION = "resolution"
         const val CHANNEL_ID = "ScreenMirrorChannel"
-        const val PORT = 15557
+        const val VIDEO_PORT = 15557
+        const val CONTROL_PORT = 15558
+        const val HTTP_PORT = 8080
         const val HOST = "127.0.0.1"
     }
 
@@ -50,15 +50,6 @@ class ScreenCaptureService : Service() {
 
         val resultCode = intent!!.getIntExtra(EXTRA_RESULT_CODE, -1)
         val resultData = intent.getParcelableExtra<Intent>(EXTRA_RESULT_DATA)!!
-
-        val res = intent.getStringExtra(EXTRA_RESOLUTION) ?: "720"
-        val (w, h) = when (res) {
-            "1080" -> Pair(1920, 1080)
-            "480" -> Pair(854, 480)
-            else -> Pair(1280, 720)
-        }
-        initialWidth = w
-        initialHeight = h
 
         val projectionManager = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
         mediaProjection = projectionManager.getMediaProjection(resultCode, resultData)
@@ -85,32 +76,51 @@ class ScreenCaptureService : Service() {
     }
 
     private fun startStreaming() {
-        val dpi = 320
-        val width = initialWidth
-        val height = initialHeight
-        currentWidth = width
-        currentHeight = height
-
-        fun connect(): OutputStream {
+        fun connectVideo(): OutputStream {
             while (true) {
                 try {
-                    socket = Socket(HOST, PORT)
-                    Log.d("ScreenCapture", "Connected to $HOST:$PORT")
+                    socket = Socket(HOST, VIDEO_PORT)
+                    Log.d("ScreenCapture", "Video connected")
                     return socket!!.getOutputStream()
                 } catch (e: Exception) {
-                    Log.d("ScreenCapture", "Connect failed, retrying...")
+                    Log.d("ScreenCapture", "Video connect failed, retrying...")
                     Thread.sleep(500)
                 }
             }
         }
 
-        var outputStream = connect()
+        fun connectControl(): Socket {
+            while (true) {
+                try {
+                    val s = Socket(HOST, CONTROL_PORT)
+                    Log.d("ScreenCapture", "Control connected on port $CONTROL_PORT")
+                    return s
+                } catch (e: Exception) {
+                    Log.d("ScreenCapture", "Control connect failed, retrying...")
+                    Thread.sleep(500)
+                }
+            }
+        }
 
-        // Send resolution config to PC
-        outputStream.write("{\"width\":$width,\"height\":$height}\n".toByteArray())
-        outputStream.flush()
+        val videoOut = connectVideo()
+        controlSocket = connectControl()
 
-        // Setup codec
+        val controlReader = controlSocket!!.getInputStream().bufferedReader()
+        val resLine = try { controlReader.readLine() } catch (e: Exception) { null }
+        if (resLine != null) {
+            try {
+                val j = org.json.JSONObject(resLine)
+                currentWidth = j.getInt("width")
+                currentHeight = j.getInt("height")
+                Log.d("ScreenCapture", "Initial resolution: ${currentWidth}x${currentHeight}")
+            } catch (e: Exception) {
+                Log.e("ScreenCapture", "Failed to parse initial resolution: ${e.message}")
+            }
+        }
+
+        val width = currentWidth
+        val height = currentHeight
+
         try {
             val format = MediaFormat.createVideoFormat(MediaFormat.MIMETYPE_VIDEO_AVC, width, height).apply {
                 val bitrate = when { width >= 1920 -> 4_000_000; width >= 1280 -> 2_000_000; else -> 1_000_000 }
@@ -126,7 +136,7 @@ class ScreenCaptureService : Service() {
             val inputSurface = mediaCodec!!.createInputSurface()
             mediaCodec!!.start()
             virtualDisplay = mediaProjection!!.createVirtualDisplay(
-                "ScreenMirror", width, height, dpi,
+                "ScreenMirror", width, height, 320,
                 DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
                 inputSurface, null, null
             )
@@ -138,12 +148,11 @@ class ScreenCaptureService : Service() {
         broadcastStatus("streaming")
         running = true
 
-        // Listen for resolution changes from PC
         Thread {
             try {
-                val reader = socket!!.getInputStream().bufferedReader()
-                while (true) {
-                    val line = reader.readLine() ?: break
+                while (running) {
+                    val line = controlReader.readLine() ?: break
+                    Log.d("ScreenCapture", "Control message: $line")
                     try {
                         val j = org.json.JSONObject(line)
                         val newWidth = j.getInt("width")
@@ -156,11 +165,12 @@ class ScreenCaptureService : Service() {
                     }
                 }
             } catch (e: Exception) {
-                Log.d("ScreenCapture", "Config thread ended: ${e.message}")
+                Log.d("ScreenCapture", "Control thread ended: ${e.message}")
             }
         }.start()
 
         val bufferInfo = MediaCodec.BufferInfo()
+        var out = videoOut
 
         while (running) {
             if (restarting) { Thread.sleep(50); continue }
@@ -174,11 +184,10 @@ class ScreenCaptureService : Service() {
                 val data = ByteArray(bufferInfo.size)
                 buffer.get(data)
                 try {
-                    outputStream.write(data)
-                    outputStream.flush()
+                    out.write(data)
+                    out.flush()
                 } catch (e: Exception) {
-                    Log.e("ScreenCapture", "Write failed, reconnecting: ${e.message}")
-                    outputStream = connect()
+                    Log.e("ScreenCapture", "Write failed: ${e.message}")
                 }
                 mediaCodec!!.releaseOutputBuffer(index, false)
             }
@@ -230,6 +239,7 @@ class ScreenCaptureService : Service() {
         virtualDisplay = null
         try { mediaProjection?.stop() } catch (e: Exception) {}
         try { socket?.close() } catch (e: Exception) {}
+        try { controlSocket?.close() } catch (e: Exception) {}
         broadcastStatus("idle")
     }
 }

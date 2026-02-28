@@ -21,6 +21,7 @@
       overflow: hidden;
     }
 
+    /* ── Toolbar ── */
     #toolbar {
       display: flex;
       align-items: center;
@@ -38,16 +39,209 @@
       margin-right: auto;
     }
 
+    .tb-btn {
+      padding: 6px 14px;
+      border-radius: 6px;
+      border: none;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.2s;
+      background: #2a2a38;
+      color: #e0e0e0;
+    }
+
+    .tb-btn:hover {
+      background: #3a3a50;
+    }
+
+    .tb-btn.primary {
+      background: #3ddc84;
+      color: #0f0f13;
+    }
+
+    .tb-btn.primary:hover {
+      background: #52e896;
+    }
+
+    .tb-btn.danger {
+      background: #e85252;
+      color: #fff;
+    }
+
+    /* ── Views ── */
+    .view {
+      display: none;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    .view.active {
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Devices view ── */
+    #view-devices {
+      padding: 24px;
+      gap: 16px;
+      overflow-y: auto;
+    }
+
+    #view-devices h2 {
+      font-size: 14px;
+      color: #888;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .device-card {
+      background: #1a1a22;
+      border: 1px solid #2a2a38;
+      border-radius: 10px;
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .device-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #555;
+      flex-shrink: 0;
+    }
+
+    .device-dot.online {
+      background: #3ddc84;
+      box-shadow: 0 0 6px #3ddc84;
+    }
+
+    .device-name {
+      font-size: 15px;
+      font-weight: 500;
+      flex: 1;
+      cursor: pointer;
+      outline: none;
+      background: transparent;
+      color: #e0e0e0;
+      border: none;
+      border-bottom: 1px solid transparent;
+    }
+
+    .device-name:focus {
+      border-bottom-color: #3a3a50;
+    }
+
+    .device-serial {
+      font-size: 12px;
+      color: #555;
+      flex: 1;
+    }
+
+    .device-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .empty-state {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      color: #444;
+    }
+
+    .empty-state p {
+      font-size: 14px;
+    }
+
+    /* ── Pair modal ── */
+    #pair-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.7);
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+    }
+
+    #pair-overlay.open {
+      display: flex;
+    }
+
+    #pair-modal {
+      background: #1a1a22;
+      border: 1px solid #2a2a38;
+      border-radius: 12px;
+      padding: 32px;
+      width: 360px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+    }
+
+    #pair-modal h2 {
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    #pair-code {
+      font-size: 36px;
+      font-weight: 700;
+      letter-spacing: 8px;
+      color: #3ddc84;
+    }
+
+    #pair-modal p {
+      font-size: 13px;
+      color: #888;
+      text-align: center;
+    }
+
+    #pair-modal .modal-actions {
+      display: flex;
+      gap: 10px;
+      width: 100%;
+    }
+
+    #pair-modal .modal-actions button {
+      flex: 1;
+    }
+
+    /* ── Stream view ── */
+    #view-stream {
+      flex-direction: column;
+    }
+
+    #stream-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 8px 16px;
+      background: #1a1a22;
+      border-bottom: 1px solid #2a2a38;
+      flex-shrink: 0;
+    }
+
+    #stream-device-name {
+      font-size: 13px;
+      font-weight: 500;
+      margin-right: auto;
+    }
+
     #status-dot {
       width: 9px;
       height: 9px;
       border-radius: 50%;
       background: #555;
       transition: background 0.3s;
-    }
-
-    #status-dot.idle {
-      background: #555;
     }
 
     #status-dot.connected {
@@ -76,37 +270,13 @@
       outline: none;
     }
 
-    button {
-      padding: 6px 16px;
-      border-radius: 6px;
-      border: none;
-      font-size: 13px;
-      font-weight: 500;
-      cursor: pointer;
-      transition: background 0.2s;
-    }
-
-    #btn-connect {
-      background: #3ddc84;
-      color: #0f0f13;
-    }
-
-    #btn-connect:hover {
-      background: #52e896;
-    }
-
-    #btn-connect.disconnect {
-      background: #e85252;
-      color: #fff;
-    }
-
     #video-area {
       flex: 1;
       display: flex;
       align-items: center;
       justify-content: center;
-      overflow: hidden;
       background: #000;
+      overflow: hidden;
     }
 
     #placeholder {
@@ -125,95 +295,206 @@
       display: none;
       max-width: 100%;
       max-height: 100%;
-      object-fit: contain;
     }
   </style>
 </head>
 
 <body>
+
+  <!-- Toolbar -->
   <div id="toolbar">
     <h1>📱 Screen Mirror</h1>
-    <div id="status-dot" class="idle"></div>
-    <span id="status-text">Idle</span>
-    <select id="res-select">
-      <option value="480">480p</option>
-      <option value="720">720p</option>
-      <option value="1080">1080p</option>
-    </select>
-    <button id="btn-connect" onclick="toggleConnect()">Connect</button>
+    <button class="tb-btn" id="btn-back" onclick="showDevices()" style="display:none">← Back</button>
+    <button class="tb-btn primary" onclick="openPair()">+ Pair Device</button>
   </div>
-  <div id="video-area">
-    <div id="placeholder">
-      <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+
+  <!-- Devices view -->
+  <div class="view active" id="view-devices">
+    <h2>Paired Devices</h2>
+    <div id="device-list"></div>
+    <div class="empty-state" id="empty-state" style="display:none">
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
         <rect x="5" y="2" width="14" height="20" rx="2" />
         <circle cx="12" cy="17" r="1" />
       </svg>
-      <p>Launch the app on your Android device</p>
+      <p>No paired devices. Click "+ Pair Device" to add one.</p>
     </div>
-    <canvas id="screen"></canvas>
+  </div>
+
+  <!-- Stream view -->
+  <div class="view" id="view-stream">
+    <div id="stream-toolbar">
+      <span id="stream-device-name">Device</span>
+      <div id="status-dot" class="idle"></div>
+      <span id="status-text">Idle</span>
+      <select id="res-select" onchange="changeRes()">
+        <option value="480">480p</option>
+        <option value="720" selected>720p</option>
+        <option value="1080">1080p</option>
+      </select>
+      <button class="tb-btn danger" onclick="stopStream()">Stop</button>
+    </div>
+    <div id="video-area">
+      <div id="placeholder">
+        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <rect x="5" y="2" width="14" height="20" rx="2" />
+          <circle cx="12" cy="17" r="1" />
+        </svg>
+        <p>Waiting for Android to start streaming...</p>
+      </div>
+      <canvas id="screen"></canvas>
+    </div>
+  </div>
+
+  <!-- Pair modal -->
+  <div id="pair-overlay">
+    <div id="pair-modal">
+      <h2>Pair New Device</h2>
+      <div id="pair-code">------</div>
+      <p>Enter this code in the Screen Mirror app on your Android device, or scan the QR code. Make sure the device is
+        connected via USB.</p>
+      <div class="modal-actions">
+        <button class="tb-btn" onclick="closePair()">Cancel</button>
+      </div>
+    </div>
   </div>
 
   <script>
     let ws = null;
     let decoder = null;
-    let connected = false;
+    let streaming = false;
     let statusPoll = null;
-    let frameCount = 0;
+    let activeDeviceId = null;
+    let activeDeviceName = '';
 
     const canvas = document.getElementById('screen');
     const ctx = canvas.getContext('2d');
 
-    document.getElementById('res-select').addEventListener('change', (e) => {
-      fetch(`/api/setres?res=${e.target.value}`, { method: 'POST' });
-    });
+    // ── Views ──────────────────────────────────────────────────────────────────
+
+    function showDevices() {
+      document.getElementById('view-devices').classList.add('active');
+      document.getElementById('view-stream').classList.remove('active');
+      document.getElementById('btn-back').style.display = 'none';
+      loadDevices();
+    }
+
+    function showStream(id, name) {
+      activeDeviceId = id;
+      activeDeviceName = name;
+      document.getElementById('stream-device-name').textContent = name;
+      document.getElementById('view-devices').classList.remove('active');
+      document.getElementById('view-stream').classList.add('active');
+      document.getElementById('btn-back').style.display = '';
+    }
+
+    // ── Devices ────────────────────────────────────────────────────────────────
+
+    function loadDevices() {
+      fetch('/api/devices').then(r => r.json()).then(devices => {
+        const list = document.getElementById('device-list');
+        const empty = document.getElementById('empty-state');
+        list.innerHTML = '';
+        if (devices.length === 0) {
+          empty.style.display = 'flex';
+          return;
+        }
+        empty.style.display = 'none';
+        devices.forEach(d => {
+          const card = document.createElement('div');
+          card.className = 'device-card';
+          card.innerHTML = `
+          <div class="device-dot ${d.online ? 'online' : ''}"></div>
+          <input class="device-name" value="${d.name}" onblur="renameDevice('${d.id}', this.value)" />
+          <span class="device-serial">${d.serial || ''}</span>
+          <div class="device-actions">
+            <button class="tb-btn primary" ${d.online ? '' : 'disabled'} onclick="startStream('${d.id}', '${d.name}')">Start</button>
+            <button class="tb-btn danger" onclick="removeDevice('${d.id}')">Remove</button>
+          </div>
+        `;
+          list.appendChild(card);
+        });
+      });
+    }
+
+    function renameDevice(id, name) {
+      fetch(`/api/devices/rename?id=${id}&name=${encodeURIComponent(name)}`, { method: 'POST' });
+    }
+
+    function removeDevice(id) {
+      fetch(`/api/devices/remove?id=${id}`, { method: 'POST' }).then(() => loadDevices());
+    }
+
+    // Poll devices every 3s when on devices view
+    setInterval(() => {
+      if (document.getElementById('view-devices').classList.contains('active')) {
+        loadDevices();
+      }
+    }, 3000);
+
+    // ── Pairing ────────────────────────────────────────────────────────────────
+
+    async function openPair () {
+      document.getElementById('pair-overlay').classList.add('open');
+      await fetch('/api/pair/ready', { method: 'POST' });
+      fetch('/api/pair/code').then(r => r.json()).then(d => {
+        document.getElementById('pair-code').textContent = d.code;
+      });
+    }
+
+    function closePair() {
+      document.getElementById('pair-overlay').classList.remove('open');
+      loadDevices();
+    }
+
+    // ── Stream ─────────────────────────────────────────────────────────────────
+
+    function startStream(id, name) {
+      const res = document.getElementById('res-select').value;
+      fetch(`/api/stream/start?id=${id}&res=${res}`, { method: 'POST' }).then(r => r.json()).then(d => {
+        if (!d.ok) { alert(d.msg); return; }
+        showStream(id, name);
+        streaming = true;
+        setStatus('connected');
+        startDecoder();
+        startStatusPoll();
+      });
+    }
+
+    function stopStream() {
+      fetch('/api/stream/stop', { method: 'POST' }).then(() => {
+        streaming = false;
+        stopDecoder();
+        stopStatusPoll();
+        setStatus('idle');
+        canvas.style.display = 'none';
+        document.getElementById('placeholder').style.display = 'flex';
+        showDevices();
+      });
+    }
+
+    function changeRes() {
+      const res = document.getElementById('res-select').value;
+      fetch(`/api/setres?res=${res}`, { method: 'POST' });
+    }
+
+    // ── Decoder ────────────────────────────────────────────────────────────────
 
     function setStatus(st) {
       document.getElementById('status-dot').className = st;
       document.getElementById('status-text').textContent = st.charAt(0).toUpperCase() + st.slice(1);
     }
 
-    function toggleConnect() {
-      connected ? stopConnect() : startConnect();
-    }
-
-    function startConnect() {
-      console.log('res:', document.getElementById('res-select').value);
-      const res = document.getElementById('res-select').value;
-      fetch(`/api/connect?res=${res}`, { method: 'POST' });
-      connected = true;
-      document.getElementById('btn-connect').textContent = 'Disconnect';
-      document.getElementById('btn-connect').classList.add('disconnect');
-      setStatus('connected');
-      startDecoder();
-      startStatusPoll();
-    }
-
-    function stopConnect() {
-      fetch('/api/disconnect', { method: 'POST' }).then(() => {
-        connected = false;
-        document.getElementById('btn-connect').textContent = 'Connect';
-        document.getElementById('btn-connect').classList.remove('disconnect');
-        setStatus('idle');
-        stopDecoder();
-        stopStatusPoll();
-        canvas.style.display = 'none';
-        document.getElementById('placeholder').style.display = 'flex';
-      });
-    }
-
     function startDecoder() {
-      frameCount = 0;
       let configured = false;
       let waitingForKeyframe = true;
 
       decoder = new VideoDecoder({
         output: (frame) => {
-          console.log(frame.displayWidth, frame.displayHeight);
           canvas.width = frame.displayWidth * (720 / frame.displayHeight);
           canvas.height = 720;
           canvas.style.display = 'block';
           document.getElementById('placeholder').style.display = 'none';
-          frameCount++;
           ctx.drawImage(frame, 0, 0, canvas.width, canvas.height);
           frame.close();
         },
@@ -225,24 +506,19 @@
 
       ws.onmessage = (e) => {
         const data = new Uint8Array(e.data);
-
-        // Find all NAL types in this chunk
         const nalTypes = [];
         for (let i = 0; i < data.length - 4; i++) {
           if (data[i] === 0 && data[i + 1] === 0 && data[i + 2] === 0 && data[i + 3] === 1) {
             nalTypes.push(data[i + 4] & 0x1f);
           }
         }
-
         const hasSPS = nalTypes.includes(7);
         const hasIDR = nalTypes.includes(5);
 
         if (!configured && hasSPS) {
           decoder.configure({ codec: 'avc1.42001e', optimizeForLatency: true });
           configured = true;
-          console.log('Decoder configured, NALs:', nalTypes);
         }
-
         if (!configured) return;
         if (waitingForKeyframe && !hasIDR) return;
         if (hasIDR) waitingForKeyframe = false;
@@ -260,7 +536,7 @@
       };
 
       ws.onclose = () => {
-        if (connected) setStatus('connected');
+        if (streaming) setStatus('connected');
       };
     }
 
@@ -278,6 +554,9 @@
     function stopStatusPoll() {
       if (statusPoll) { clearInterval(statusPoll); statusPoll = null; }
     }
+
+    // ── Init ───────────────────────────────────────────────────────────────────
+    loadDevices();
   </script>
 </body>
 

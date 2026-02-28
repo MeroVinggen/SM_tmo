@@ -4,6 +4,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.SharedPreferences
 import android.media.projection.MediaProjectionManager
 import android.os.Bundle
 import android.webkit.JavascriptInterface
@@ -11,16 +12,24 @@ import android.webkit.WebView
 import androidx.activity.ComponentActivity
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
+import okhttp3.FormBody
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import org.json.JSONArray
+import org.json.JSONObject
 
 class MainActivity : ComponentActivity() {
 
     private lateinit var webView: WebView
     private lateinit var projectionManager: MediaProjectionManager
-    private var pendingRes: String = "720"
+    private lateinit var prefs: SharedPreferences
+    private val httpClient = OkHttpClient()
 
     companion object {
         const val ACTION_STATUS = "com.example.meroscreenmirror.STATUS"
         const val EXTRA_STATUS = "status"
+        const val PREFS_NAME = "screen_mirror_prefs"
+        const val KEY_DEVICES = "paired_devices"
     }
 
     private val statusReceiver = object : BroadcastReceiver() {
@@ -39,16 +48,15 @@ class MainActivity : ComponentActivity() {
             val serviceIntent = Intent(this, ScreenCaptureService::class.java).apply {
                 putExtra(ScreenCaptureService.EXTRA_RESULT_CODE, result.resultCode)
                 putExtra(ScreenCaptureService.EXTRA_RESULT_DATA, result.data)
-                putExtra(ScreenCaptureService.EXTRA_RESOLUTION, pendingRes)
             }
             startForegroundService(serviceIntent)
         }
     }
 
     inner class AndroidBridge {
+
         @JavascriptInterface
-        fun startCapture(res: String) {
-            pendingRes = res
+        fun startCapture() {
             runOnUiThread {
                 launcher.launch(projectionManager.createScreenCaptureIntent())
             }
@@ -58,12 +66,69 @@ class MainActivity : ComponentActivity() {
         fun stopCapture() {
             stopService(Intent(this@MainActivity, ScreenCaptureService::class.java))
         }
+
+        @JavascriptInterface
+        fun getPairedDevices(): String {
+            val stored = prefs.getString(KEY_DEVICES, "[]") ?: "[]"
+            // Check online status for each device by polling ADB (via the PC)
+            // For now return stored list — online status updated when pairing/connecting
+            return stored
+        }
+
+        @JavascriptInterface
+        fun confirmPair(code: String, name: String): String {
+            // Send pair request to PC via HTTP (through ADB tunnel)
+            return try {
+                val deviceName = name.ifEmpty { android.os.Build.MODEL }
+                val url = "http://127.0.0.1:${ScreenCaptureService.HTTP_PORT}/api/pair/confirm?code=$code&name=${java.net.URLEncoder.encode(deviceName, "UTF-8")}"
+                val request = Request.Builder().url(url).post(FormBody.Builder().build()).build()
+                val response = httpClient.newCall(request).execute()
+                val body = response.body?.string() ?: "{\"ok\":false,\"msg\":\"no response\"}"
+                val json = JSONObject(body)
+                if (json.optBoolean("ok")) {
+                    // Save paired device
+                    savePairedDevice(json.optString("id"), json.optString("name", deviceName))
+                }
+                body
+            } catch (e: Exception) {
+                "{\"ok\":false,\"msg\":\"${e.message}\"}"
+            }
+        }
+
+        @JavascriptInterface
+        fun removePairedDevice(id: String) {
+            this@MainActivity.removePairedDevice(id)
+        }
+    }
+
+    private fun savePairedDevice(id: String, name: String) {
+        val stored = prefs.getString(KEY_DEVICES, "[]") ?: "[]"
+        val arr = JSONArray(stored)
+        val obj = JSONObject().apply {
+            put("id", id)
+            put("name", name)
+            put("online", false)
+        }
+        arr.put(obj)
+        prefs.edit().putString(KEY_DEVICES, arr.toString()).apply()
+    }
+
+    private fun removePairedDevice(id: String) {
+        val stored = prefs.getString(KEY_DEVICES, "[]") ?: "[]"
+        val arr = JSONArray(stored)
+        val newArr = JSONArray()
+        for (i in 0 until arr.length()) {
+            val obj = arr.getJSONObject(i)
+            if (obj.optString("id") != id) newArr.put(obj)
+        }
+        prefs.edit().putString(KEY_DEVICES, newArr.toString()).apply()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         projectionManager = getSystemService(MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
+        prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
         webView = WebView(this).apply {
             settings.javaScriptEnabled = true
@@ -72,7 +137,11 @@ class MainActivity : ComponentActivity() {
         }
         setContentView(webView)
 
-        ContextCompat.registerReceiver(this, statusReceiver, IntentFilter(ACTION_STATUS), ContextCompat.RECEIVER_NOT_EXPORTED)
+        ContextCompat.registerReceiver(
+            this, statusReceiver,
+            IntentFilter(ACTION_STATUS),
+            ContextCompat.RECEIVER_NOT_EXPORTED
+        )
     }
 
     override fun onDestroy() {
