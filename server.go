@@ -133,6 +133,17 @@ func (s *Server) handlePairConfirm(w http.ResponseWriter, r *http.Request) {
 		name = "Android Device"
 	}
 
+	// check duplicate serial
+	if serial != "" {
+		for _, d := range s.devices.All() {
+			if d.Serial == serial {
+				w.Header().Set("Content-Type", "application/json")
+				w.Write([]byte(`{"ok":false,"msg":"device already paired"}`))
+				return
+			}
+		}
+	}
+
 	device := s.devices.Add(name, serial)
 	w.Header().Set("Content-Type", "application/json")
 	fmt.Fprintf(w, `{"ok":true,"id":"%s","name":"%s"}`, device.ID, device.Name)
