@@ -62,9 +62,12 @@ func (s *Server) handleConnect(w http.ResponseWriter, r *http.Request) {
 	switch res {
 	case "1080":
 		s.width, s.height = 1920, 1080
+	case "480":
+    s.width, s.height = 854, 480
 	default:
 		s.width, s.height = 1280, 720
 	}
+	fmt.Printf("handleConnect: width=%d height=%d res=%s\n", s.width, s.height, res)
 	go s.startCapture()
 	w.Header().Set("Content-Type", "application/json")
 	w.Write([]byte(`{"ok":true}`))
@@ -146,6 +149,10 @@ func (s *Server) startCapture() {
 		return
 	}
 	s.conn = conn
+	config := fmt.Sprintf("{\"width\":%d,\"height\":%d}\n", s.width, s.height)
+	fmt.Printf("Sending config: %s", config)
+	conn.Write([]byte(config))
+	s.setStatus("streaming")
 	s.setStatus("streaming")
 	fmt.Println("Streaming started")
 
@@ -166,6 +173,7 @@ func (s *Server) startCapture() {
 		chunk := make([]byte, n)
 		copy(chunk, buf[:n])
 		s.broadcastToWS(chunk)
+		fmt.Printf("chunk size: %d bytes\n", n)
 	}
 }
 

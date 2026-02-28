@@ -136,6 +136,7 @@
     <div id="status-dot" class="idle"></div>
     <span id="status-text">Idle</span>
     <select id="res-select">
+      <option value="480">480p</option>
       <option value="720">720p</option>
       <option value="1080">1080p</option>
     </select>
@@ -172,6 +173,7 @@
     }
 
     function startConnect() {
+      console.log('res:', document.getElementById('res-select').value);
       const res = document.getElementById('res-select').value;
       fetch(`/api/connect?res=${res}`, { method: 'POST' });
       connected = true;
@@ -202,12 +204,13 @@
 
       decoder = new VideoDecoder({
         output: (frame) => {
-          canvas.width = frame.displayWidth;
-          canvas.height = frame.displayHeight;
+          console.log(frame.displayWidth, frame.displayHeight);
+          canvas.width = frame.displayWidth * (720 / frame.displayHeight);
+          canvas.height = 720;
           canvas.style.display = 'block';
           document.getElementById('placeholder').style.display = 'none';
           frameCount++;
-          ctx.drawImage(frame, 0, 0);
+          ctx.drawImage(frame, 0, 0, canvas.width, canvas.height);
           frame.close();
         },
         error: (e) => console.error('Decoder error:', e)
