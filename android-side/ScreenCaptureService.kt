@@ -11,9 +11,7 @@ import android.media.MediaFormat
 import android.media.projection.MediaProjection
 import android.media.projection.MediaProjectionManager
 import android.os.IBinder
-import android.util.DisplayMetrics
 import android.util.Log
-import android.view.WindowManager
 import androidx.core.app.NotificationCompat
 import java.io.OutputStream
 import java.net.Socket
@@ -24,11 +22,18 @@ class ScreenCaptureService : Service() {
     private var virtualDisplay: VirtualDisplay? = null
     private var mediaCodec: MediaCodec? = null
     private var socket: Socket? = null
+    private var initialWidth = 1280
+    private var initialHeight = 720
+
     @Volatile private var restarting = false
+    @Volatile private var currentWidth = 1280
+    @Volatile private var currentHeight = 720
+    @Volatile private var running = false
 
     companion object {
         const val EXTRA_RESULT_CODE = "result_code"
         const val EXTRA_RESULT_DATA = "result_data"
+        const val EXTRA_RESOLUTION = "resolution"
         const val CHANNEL_ID = "ScreenMirrorChannel"
         const val PORT = 15557
         const val HOST = "127.0.0.1"
@@ -46,14 +51,23 @@ class ScreenCaptureService : Service() {
         val resultCode = intent!!.getIntExtra(EXTRA_RESULT_CODE, -1)
         val resultData = intent.getParcelableExtra<Intent>(EXTRA_RESULT_DATA)!!
 
+        val res = intent.getStringExtra(EXTRA_RESOLUTION) ?: "720"
+        val (w, h) = when (res) {
+            "1080" -> Pair(1920, 1080)
+            "480" -> Pair(854, 480)
+            else -> Pair(1280, 720)
+        }
+        initialWidth = w
+        initialHeight = h
+
         val projectionManager = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
         mediaProjection = projectionManager.getMediaProjection(resultCode, resultData)
 
         mediaProjection!!.registerCallback(object : MediaProjection.Callback() {
             override fun onStop() {
                 virtualDisplay?.release()
-                mediaCodec?.stop()
-                mediaCodec?.release()
+                try { mediaCodec?.stop() } catch (e: Exception) {}
+                try { mediaCodec?.release() } catch (e: Exception) {}
                 stopSelf()
             }
         }, null)
@@ -63,10 +77,20 @@ class ScreenCaptureService : Service() {
         return START_NOT_STICKY
     }
 
+    private fun broadcastStatus(status: String) {
+        sendBroadcast(Intent(MainActivity.ACTION_STATUS).apply {
+            putExtra(MainActivity.EXTRA_STATUS, status)
+            setPackage(packageName)
+        })
+    }
+
     private fun startStreaming() {
         val dpi = 320
+        val width = initialWidth
+        val height = initialHeight
+        currentWidth = width
+        currentHeight = height
 
-        // Connect first to receive config
         fun connect(): OutputStream {
             while (true) {
                 try {
@@ -82,26 +106,14 @@ class ScreenCaptureService : Service() {
 
         var outputStream = connect()
 
-        // Read resolution config from PC
-        var configLine: String? = null
-        while (configLine == null) {
-            configLine = socket!!.getInputStream().bufferedReader().readLine()
-            if (configLine == null) Thread.sleep(100)
-        }
-        Log.d("ScreenCapture", "Raw config line: $configLine")
-        val json = org.json.JSONObject(configLine)
-        val width = json.getInt("width")
-        val height = json.getInt("height")
-        Log.d("ScreenCapture", "Resolution: ${width}x${height}")
+        // Send resolution config to PC
+        outputStream.write("{\"width\":$width,\"height\":$height}\n".toByteArray())
+        outputStream.flush()
 
         // Setup codec
         try {
             val format = MediaFormat.createVideoFormat(MediaFormat.MIMETYPE_VIDEO_AVC, width, height).apply {
-                val bitrate = when {
-                    width >= 1920 -> 4_000_000
-                    width >= 1280 -> 2_000_000
-                    else -> 1_000_000  // 480p
-                }
+                val bitrate = when { width >= 1920 -> 4_000_000; width >= 1280 -> 2_000_000; else -> 1_000_000 }
                 setInteger(MediaFormat.KEY_BIT_RATE, bitrate)
                 setInteger(MediaFormat.KEY_FRAME_RATE, 30)
                 setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 0)
@@ -123,6 +135,10 @@ class ScreenCaptureService : Service() {
             return
         }
 
+        broadcastStatus("streaming")
+        running = true
+
+        // Listen for resolution changes from PC
         Thread {
             try {
                 val reader = socket!!.getInputStream().bufferedReader()
@@ -132,19 +148,27 @@ class ScreenCaptureService : Service() {
                         val j = org.json.JSONObject(line)
                         val newWidth = j.getInt("width")
                         val newHeight = j.getInt("height")
-                        if (newWidth != width || newHeight != height) {
+                        if (newWidth != currentWidth || newHeight != currentHeight) {
                             restartCodec(newWidth, newHeight)
                         }
-                    } catch (e: Exception) { Log.e("ScreenCapture", "Config parse error: ${e.message}") }
+                    } catch (e: Exception) {
+                        Log.e("ScreenCapture", "Config parse error: ${e.message}")
+                    }
                 }
-            } catch (e: Exception) { Log.d("ScreenCapture", "Config thread ended: ${e.message}") }
+            } catch (e: Exception) {
+                Log.d("ScreenCapture", "Config thread ended: ${e.message}")
+            }
         }.start()
 
         val bufferInfo = MediaCodec.BufferInfo()
 
-        while (true) {
+        while (running) {
             if (restarting) { Thread.sleep(50); continue }
-            val index = mediaCodec!!.dequeueOutputBuffer(bufferInfo, 10000)
+            val index = try {
+                mediaCodec!!.dequeueOutputBuffer(bufferInfo, 10000)
+            } catch (e: Exception) {
+                break
+            }
             if (index >= 0) {
                 val buffer = mediaCodec!!.getOutputBuffer(index)!!
                 val data = ByteArray(bufferInfo.size)
@@ -159,23 +183,6 @@ class ScreenCaptureService : Service() {
                 mediaCodec!!.releaseOutputBuffer(index, false)
             }
         }
-    }
-
-    private fun createNotificationChannel() {
-        val channel = NotificationChannel(CHANNEL_ID, "Screen Mirror", NotificationManager.IMPORTANCE_LOW)
-        getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
-    }
-
-    override fun onBind(intent: Intent?): IBinder? = null
-
-    override fun onDestroy() {
-        try { mediaCodec?.stop() } catch (e: Exception) {}
-        try { mediaCodec?.release() } catch (e: Exception) {}
-        mediaCodec = null
-        try { virtualDisplay?.release() } catch (e: Exception) {}
-        virtualDisplay = null
-        try { mediaProjection?.stop() } catch (e: Exception) {}
-        try { socket?.close() } catch (e: Exception) {}
     }
 
     private fun restartCodec(width: Int, height: Int) {
@@ -199,9 +206,30 @@ class ScreenCaptureService : Service() {
         }
         val inputSurface = mediaCodec!!.createInputSurface()
         mediaCodec!!.start()
-        // REUSE virtualDisplay, just resize it
         virtualDisplay!!.resize(width, height, 320)
         virtualDisplay!!.surface = inputSurface
+
+        currentWidth = width
+        currentHeight = height
         restarting = false
+    }
+
+    private fun createNotificationChannel() {
+        val channel = NotificationChannel(CHANNEL_ID, "Screen Mirror", NotificationManager.IMPORTANCE_LOW)
+        getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
+    }
+
+    override fun onBind(intent: Intent?): IBinder? = null
+
+    override fun onDestroy() {
+        running = false
+        try { mediaCodec?.stop() } catch (e: Exception) {}
+        try { mediaCodec?.release() } catch (e: Exception) {}
+        mediaCodec = null
+        try { virtualDisplay?.release() } catch (e: Exception) {}
+        virtualDisplay = null
+        try { mediaProjection?.stop() } catch (e: Exception) {}
+        try { socket?.close() } catch (e: Exception) {}
+        broadcastStatus("idle")
     }
 }
