@@ -75,9 +75,14 @@ class MainActivity : ComponentActivity() {
                     .url("http://127.0.0.1:${ScreenCaptureService.HTTP_PORT}/api/devices")
                     .build()
                 val response = httpClient.newCall(request).execute()
-                response.body?.string() ?: stored
+                val body = response.body?.string() ?: stored
+                prefs.edit().putString(KEY_DEVICES, body).apply()
+                body
             } catch (e: Exception) {
-                stored
+                // PC offline — mark all stored devices as offline
+                val arr = JSONArray(stored)
+                for (i in 0 until arr.length()) arr.getJSONObject(i).put("online", false)
+                arr.toString()
             }
         }
 
