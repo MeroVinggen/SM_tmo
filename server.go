@@ -33,6 +33,7 @@ type Server struct {
 	devices     *DeviceStore
 	pairCode    string
 	activeID    string
+	controlListening bool
 }
 
 func NewServer() *Server {
@@ -249,8 +250,14 @@ func (s *Server) broadcastToWS(data []byte) {
 // ── Capture ───────────────────────────────────────────────────────────────────
 
 func (s *Server) startCapture(serial string) {
+	fmt.Println("startCapture called, listener nil:", s.listener == nil, "status:", s.getStatus())
 	if s.listener != nil {
-    // reuse existing tunnel, just re-accept
+    if s.getStatus() != "idle" {
+        return
+    }
+    s.setStatus("connected")
+    s.stopStream = make(chan struct{})
+		go s.runControlListener()
     go s.reAccept(serial)
     return
 	}
@@ -296,8 +303,10 @@ func (s *Server) startCapture(serial string) {
 			s.setStatus("idle")
 			select {
 			case <-s.stopStream:
+					fmt.Println("stopStream caught, not restarting")
 			default:
-				go s.startCapture(serial)
+					fmt.Println("stopStream NOT caught, restarting")
+					go s.startCapture(serial)
 			}
 			return
 		}
@@ -308,7 +317,21 @@ func (s *Server) startCapture(serial string) {
 }
 
 func (s *Server) runControlListener() {
+		s.mu.Lock()
+    if s.controlListening {
+        s.mu.Unlock()
+        fmt.Println("runControlListener already running, skipping")
+        return
+    }
+    s.controlListening = true
+    s.mu.Unlock()
+    defer func() {
+        s.mu.Lock()
+        s.controlListening = false
+        s.mu.Unlock()
+    }()
     for {
+				fmt.Println("runControlListener iteration start")
         l, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", controlPort))
         if err != nil {
             fmt.Println("Control listen failed:", err)
@@ -326,30 +349,33 @@ func (s *Server) runControlListener() {
 
         // wait until disconnected then re-listen
         buf := make([]byte, 1)
-        conn.Read(buf)
-        s.controlConn = nil
-        fmt.Println("Control channel closed, re-listening...")
+				conn.Read(buf)
+				s.controlConn = nil
+				fmt.Println("Control channel closed")
+				// just return, no re-loop
+				return
     }
 }
 
 func (s *Server) stopCapture() {
+    fmt.Println("stopCapture called, status:", s.getStatus())
     if s.controlConn != nil {
+        fmt.Println("closing controlConn")
         s.controlConn.Close()
         s.controlConn = nil
     }
     if s.stopStream != nil {
+        fmt.Println("closing stopStream channel")
         close(s.stopStream)
-        s.stopStream = nil
     }
     if s.conn != nil {
+        fmt.Println("closing video conn")
         s.conn.Close()
         s.conn = nil
     }
-    // DON'T close listener and DON'T reset androidPort
-    // so Android can reconnect to same port
     s.activeID = ""
     s.setStatus("idle")
-    fmt.Println("Capture stopped")
+    fmt.Println("stopCapture done")
 }
 
 func (s *Server) sendResolution() {
@@ -387,7 +413,6 @@ func adbReverse(serial string, remotePort, localPort int) error {
 // ── Start ─────────────────────────────────────────────────────────────────────
 
 func (s *Server) Start() {
-	go s.runControlListener()
 	go s.pollDevices()
 
 	http.HandleFunc("/api/pair/ready", s.handlePairReady)
@@ -417,17 +442,15 @@ func (s *Server) handlePairReady(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) reAccept(serial string) {
+		fmt.Println("reAccept called, status:", s.getStatus())
     // re-setup adb reverse in case it dropped
     adbReverse(serial, 15557, s.androidPort)
     adbReverse(serial, controlPort, controlPort)
     adbReverse(serial, httpPort, httpPort)
 
-    s.setStatus("connected")
-    s.stopStream = make(chan struct{})
-    go s.runControlListener()
-
     fmt.Println("Re-waiting for Android video connection...")
     conn, err := s.listener.Accept()
+		fmt.Println("reAccept Accept returned, err:", err)
     if err != nil {
         fmt.Println("Re-accept failed:", err)
         s.setStatus("idle")
@@ -444,10 +467,12 @@ func (s *Server) reAccept(serial string) {
             fmt.Println("TCP read error:", err)
             s.setStatus("idle")
             select {
-            case <-s.stopStream:
-            default:
-                go s.reAccept(serial)
-            }
+						case <-s.stopStream:
+								fmt.Println("stopStream caught, not restarting")
+						default:
+								fmt.Println("stopStream NOT caught, restarting")
+								go s.reAccept(serial)
+						}
             return
         }
         chunk := make([]byte, n)

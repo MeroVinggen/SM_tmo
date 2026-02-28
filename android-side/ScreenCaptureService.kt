@@ -80,10 +80,10 @@ class ScreenCaptureService : Service() {
             while (true) {
                 try {
                     socket = Socket(HOST, VIDEO_PORT)
-                    Log.d("ScreenCapture", "Video connected")
+                    Log.d("ScreenCapture", "Video connected to $HOST:$VIDEO_PORT")
                     return socket!!.getOutputStream()
                 } catch (e: Exception) {
-                    Log.d("ScreenCapture", "Video connect failed, retrying...")
+                    Log.d("ScreenCapture", "Video connect failed: ${e.message}, retrying...")
                     Thread.sleep(500)
                 }
             }
@@ -187,7 +187,8 @@ class ScreenCaptureService : Service() {
                     out.write(data)
                     out.flush()
                 } catch (e: Exception) {
-                    Log.e("ScreenCapture", "Write failed: ${e.message}")
+                    Log.e("ScreenCapture", "Write failed, reconnecting: ${e.message}")
+                    out = connectVideo()
                 }
                 mediaCodec!!.releaseOutputBuffer(index, false)
             }
