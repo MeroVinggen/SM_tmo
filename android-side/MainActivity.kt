@@ -70,9 +70,15 @@ class MainActivity : ComponentActivity() {
         @JavascriptInterface
         fun getPairedDevices(): String {
             val stored = prefs.getString(KEY_DEVICES, "[]") ?: "[]"
-            // Check online status for each device by polling ADB (via the PC)
-            // For now return stored list — online status updated when pairing/connecting
-            return stored
+            return try {
+                val request = Request.Builder()
+                    .url("http://127.0.0.1:${ScreenCaptureService.HTTP_PORT}/api/devices")
+                    .build()
+                val response = httpClient.newCall(request).execute()
+                response.body?.string() ?: stored
+            } catch (e: Exception) {
+                stored
+            }
         }
 
         @JavascriptInterface

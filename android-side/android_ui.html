@@ -1,176 +1,283 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Screen Mirror</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Screen Mirror</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
 
-        body {
-          background: #0f0f13;
-          color: #e0e0e0;
-          font-family: 'Segoe UI', sans-serif;
-          height: 100vh;
-          display: flex;
-          flex-direction: column;
-          overflow: hidden;
-        }
+    body {
+      background: #0f0f13;
+      color: #e0e0e0;
+      font-family: 'Segoe UI', sans-serif;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
 
-        /* ── Toolbar ── */
-        #toolbar {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          padding: 14px 16px;
-          background: #1a1a22;
-          border-bottom: 1px solid #2a2a38;
-          flex-shrink: 0;
-        }
-        #toolbar h1 { font-size: 16px; font-weight: 600; color: #fff; margin-right: auto; }
+    /* ── Toolbar ── */
+    #toolbar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 16px;
+      background: #1a1a22;
+      border-bottom: 1px solid #2a2a38;
+      flex-shrink: 0;
+    }
 
-        .tb-btn {
-          padding: 8px 18px;
-          border-radius: 8px;
-          border: none;
-          font-size: 14px;
-          font-weight: 500;
-          cursor: pointer;
-          background: #2a2a38;
-          color: #e0e0e0;
-        }
-        .tb-btn.primary { background: #3ddc84; color: #0f0f13; }
-        .tb-btn.danger  { background: #e85252; color: #fff; }
+    #toolbar h1 {
+      font-size: 16px;
+      font-weight: 600;
+      color: #fff;
+      margin-right: auto;
+    }
 
-        /* ── Views ── */
-        .view { display: none; flex: 1; flex-direction: column; overflow-y: auto; padding: 20px 16px; gap: 14px; }
-        .view.active { display: flex; }
+    .tb-btn {
+      padding: 8px 18px;
+      border-radius: 8px;
+      border: none;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      background: #2a2a38;
+      color: #e0e0e0;
+    }
 
-        /* ── Devices ── */
-        .section-title { font-size: 12px; color: #666; text-transform: uppercase; letter-spacing: 1px; }
+    .tb-btn.primary {
+      background: #3ddc84;
+      color: #0f0f13;
+    }
 
-        .device-card {
-          background: #1a1a22;
-          border: 1px solid #2a2a38;
-          border-radius: 10px;
-          padding: 16px;
-          display: flex;
-          align-items: center;
-          gap: 12px;
-        }
-        .device-dot { width: 10px; height: 10px; border-radius: 50%; background: #555; flex-shrink: 0; }
-        .device-dot.online { background: #3ddc84; box-shadow: 0 0 5px #3ddc84; }
-        .device-info { flex: 1; }
-        .device-info .name { font-size: 15px; font-weight: 500; }
-        .device-info .sub  { font-size: 12px; color: #666; margin-top: 2px; }
+    .tb-btn.danger {
+      background: #e85252;
+      color: #fff;
+    }
 
-        .empty-state {
-          flex: 1;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          gap: 12px;
-          color: #444;
-          text-align: center;
-        }
-        .empty-state p { font-size: 14px; line-height: 1.5; }
+    /* ── Views ── */
+    .view {
+      display: none;
+      flex: 1;
+      flex-direction: column;
+      overflow-y: auto;
+      padding: 20px 16px;
+      gap: 14px;
+    }
 
-        /* ── Pair view ── */
-        #view-pair {
-          align-items: center;
-          justify-content: center;
-          gap: 24px;
-        }
-        #view-pair h2 { font-size: 18px; font-weight: 600; }
-        #view-pair p  { font-size: 14px; color: #888; text-align: center; line-height: 1.6; }
+    .view.active {
+      display: flex;
+    }
 
-        #code-input {
-          background: #2a2a38;
-          border: 1px solid #3a3a50;
-          border-radius: 8px;
-          color: #e0e0e0;
-          font-size: 28px;
-          font-weight: 700;
-          letter-spacing: 6px;
-          text-align: center;
-          padding: 14px 20px;
-          width: 240px;
-          outline: none;
-        }
+    /* ── Devices ── */
+    .section-title {
+      font-size: 12px;
+      color: #666;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
 
-        #name-input {
-          background: #2a2a38;
-          border: 1px solid #3a3a50;
-          border-radius: 8px;
-          color: #e0e0e0;
-          font-size: 15px;
-          padding: 12px 16px;
-          width: 240px;
-          outline: none;
-        }
+    .device-card {
+      background: #1a1a22;
+      border: 1px solid #2a2a38;
+      border-radius: 10px;
+      padding: 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
 
-        #pair-msg { font-size: 13px; min-height: 18px; }
-        #pair-msg.ok  { color: #3ddc84; }
-        #pair-msg.err { color: #e85252; }
+    .device-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #555;
+      flex-shrink: 0;
+    }
 
-        /* ── Stream view ── */
-        #view-stream {
-          align-items: center;
-          justify-content: center;
-          gap: 24px;
-        }
-        #stream-pc-name { font-size: 18px; font-weight: 600; }
+    .device-dot.online {
+      background: #3ddc84;
+      box-shadow: 0 0 5px #3ddc84;
+    }
 
-        #status-row { display: flex; align-items: center; gap: 10px; }
-        #status-dot { width: 12px; height: 12px; border-radius: 50%; background: #555; }
-        #status-dot.streaming { background: #3ddc84; box-shadow: 0 0 6px #3ddc84; }
-        #status-dot.connected { background: #f0a500; }
-        #status-text { font-size: 15px; color: #aaa; }
-    </style>
+    .device-info {
+      flex: 1;
+    }
+
+    .device-info .name {
+      font-size: 15px;
+      font-weight: 500;
+    }
+
+    .device-info .sub {
+      font-size: 12px;
+      color: #666;
+      margin-top: 2px;
+    }
+
+    .empty-state {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      color: #444;
+      text-align: center;
+    }
+
+    .empty-state p {
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    /* ── Pair view ── */
+    #view-pair {
+      align-items: center;
+      justify-content: center;
+      gap: 24px;
+    }
+
+    #view-pair h2 {
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    #view-pair p {
+      font-size: 14px;
+      color: #888;
+      text-align: center;
+      line-height: 1.6;
+    }
+
+    #code-input {
+      background: #2a2a38;
+      border: 1px solid #3a3a50;
+      border-radius: 8px;
+      color: #e0e0e0;
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: 6px;
+      text-align: center;
+      padding: 14px 20px;
+      width: 240px;
+      outline: none;
+    }
+
+    #name-input {
+      background: #2a2a38;
+      border: 1px solid #3a3a50;
+      border-radius: 8px;
+      color: #e0e0e0;
+      font-size: 15px;
+      padding: 12px 16px;
+      width: 240px;
+      outline: none;
+    }
+
+    #pair-msg {
+      font-size: 13px;
+      min-height: 18px;
+    }
+
+    #pair-msg.ok {
+      color: #3ddc84;
+    }
+
+    #pair-msg.err {
+      color: #e85252;
+    }
+
+    /* ── Stream view ── */
+    #view-stream {
+      align-items: center;
+      justify-content: center;
+      gap: 24px;
+    }
+
+    #stream-pc-name {
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    #status-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    #status-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #555;
+    }
+
+    #status-dot.streaming {
+      background: #3ddc84;
+      box-shadow: 0 0 6px #3ddc84;
+    }
+
+    #status-dot.connected {
+      background: #f0a500;
+    }
+
+    #status-text {
+      font-size: 15px;
+      color: #aaa;
+    }
+  </style>
 </head>
+
 <body>
 
-<div id="toolbar">
+  <div id="toolbar">
     <h1>📱 Screen Mirror</h1>
     <button class="tb-btn" id="btn-back" style="display:none" onclick="showDevices()">← Back</button>
     <button class="tb-btn primary" id="btn-pair-open" onclick="showPair()">+ Pair</button>
-</div>
+  </div>
 
-<!-- Devices view -->
-<div class="view active" id="view-devices">
+  <!-- Devices view -->
+  <div class="view active" id="view-devices">
     <span class="section-title">Paired PCs</span>
     <div id="device-list"></div>
     <div class="empty-state" id="empty-state" style="display:none">
-        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-            <rect x="2" y="3" width="20" height="14" rx="2"/>
-            <path d="M8 21h8M12 17v4"/>
-        </svg>
-        <p>No paired PCs yet.<br>Click "+ Pair" to connect to a PC.</p>
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <rect x="2" y="3" width="20" height="14" rx="2" />
+        <path d="M8 21h8M12 17v4" />
+      </svg>
+      <p>No paired PCs yet.<br>Click "+ Pair" to connect to a PC.</p>
     </div>
-</div>
+  </div>
 
-<!-- Pair view -->
-<div class="view" id="view-pair">
+  <!-- Pair view -->
+  <div class="view" id="view-pair">
     <h2>Pair with PC</h2>
     <p>Enter the 6-digit code shown<br>in the Screen Mirror PC app.</p>
     <input id="code-input" type="number" maxlength="6" placeholder="000000" oninput="onCodeInput(this)" />
     <input id="name-input" type="text" placeholder="PC name (optional)" />
     <button class="tb-btn primary" onclick="confirmPair()" style="width:240px;padding:14px">Pair</button>
     <span id="pair-msg"></span>
-</div>
+  </div>
 
-<!-- Stream view -->
-<div class="view" id="view-stream">
+  <!-- Stream view -->
+  <div class="view" id="view-stream">
     <span id="stream-pc-name">PC</span>
     <div id="status-row">
-        <div id="status-dot"></div>
-        <span id="status-text">Idle</span>
+      <div id="status-dot"></div>
+      <span id="status-text">Idle</span>
     </div>
-    <button class="tb-btn primary" id="btn-stream" onclick="toggleStream()" style="width:200px;padding:14px;font-size:16px">Start</button>
-</div>
+    <button class="tb-btn primary" id="btn-stream" onclick="toggleStream()"
+      style="width:200px;padding:14px;font-size:16px">Start</button>
+  </div>
 
-<script>
+  <script>
     let streaming = false;
     let activePcId = null;
     let activePcName = '';
@@ -293,6 +400,8 @@
 
     // ── Init ─────────────────────────────────────────────────────────────────────
     loadDevices();
-</script>
+    setInterval(loadDevices, 1000);
+  </script>
 </body>
+
 </html>

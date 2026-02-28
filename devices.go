@@ -126,7 +126,11 @@ func (ds *DeviceStore) PollOnline() {
 	ds.mu.Lock()
 	defer ds.mu.Unlock()
 	for i, d := range ds.devices {
-		ds.devices[i].Online = online[d.Serial]
+    if d.Serial == "" {
+        ds.devices[i].Online = false 
+    } else {
+        ds.devices[i].Online = online[d.Serial]
+    }
 	}
 }
 
