@@ -163,6 +163,10 @@
     const canvas = document.getElementById('screen');
     const ctx = canvas.getContext('2d');
 
+    document.getElementById('res-select').addEventListener('change', (e) => {
+      fetch(`/api/setres?res=${e.target.value}`, { method: 'POST' });
+    });
+
     function setStatus(st) {
       document.getElementById('status-dot').className = st;
       document.getElementById('status-text').textContent = st.charAt(0).toUpperCase() + st.slice(1);

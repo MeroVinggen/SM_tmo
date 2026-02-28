@@ -24,6 +24,7 @@ class ScreenCaptureService : Service() {
     private var virtualDisplay: VirtualDisplay? = null
     private var mediaCodec: MediaCodec? = null
     private var socket: Socket? = null
+    @Volatile private var restarting = false
 
     companion object {
         const val EXTRA_RESULT_CODE = "result_code"
@@ -63,14 +64,45 @@ class ScreenCaptureService : Service() {
     }
 
     private fun startStreaming() {
-        val width = 1280
-        val height = 720
         val dpi = 320
 
-        // Setup codec first
+        // Connect first to receive config
+        fun connect(): OutputStream {
+            while (true) {
+                try {
+                    socket = Socket(HOST, PORT)
+                    Log.d("ScreenCapture", "Connected to $HOST:$PORT")
+                    return socket!!.getOutputStream()
+                } catch (e: Exception) {
+                    Log.d("ScreenCapture", "Connect failed, retrying...")
+                    Thread.sleep(500)
+                }
+            }
+        }
+
+        var outputStream = connect()
+
+        // Read resolution config from PC
+        var configLine: String? = null
+        while (configLine == null) {
+            configLine = socket!!.getInputStream().bufferedReader().readLine()
+            if (configLine == null) Thread.sleep(100)
+        }
+        Log.d("ScreenCapture", "Raw config line: $configLine")
+        val json = org.json.JSONObject(configLine)
+        val width = json.getInt("width")
+        val height = json.getInt("height")
+        Log.d("ScreenCapture", "Resolution: ${width}x${height}")
+
+        // Setup codec
         try {
             val format = MediaFormat.createVideoFormat(MediaFormat.MIMETYPE_VIDEO_AVC, width, height).apply {
-                setInteger(MediaFormat.KEY_BIT_RATE, 4_000_000)
+                val bitrate = when {
+                    width >= 1920 -> 4_000_000
+                    width >= 1280 -> 2_000_000
+                    else -> 1_000_000  // 480p
+                }
+                setInteger(MediaFormat.KEY_BIT_RATE, bitrate)
                 setInteger(MediaFormat.KEY_FRAME_RATE, 30)
                 setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 0)
                 setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface)
@@ -91,24 +123,27 @@ class ScreenCaptureService : Service() {
             return
         }
 
-        // Connect with retry
-        fun connect(): OutputStream {
-            while (true) {
-                try {
-                    socket = Socket(HOST, PORT)
-                    Log.d("ScreenCapture", "Connected to $HOST:$PORT")
-                    return socket!!.getOutputStream()
-                } catch (e: Exception) {
-                    Log.d("ScreenCapture", "Connect failed, retrying...")
-                    Thread.sleep(500)
+        Thread {
+            try {
+                val reader = socket!!.getInputStream().bufferedReader()
+                while (true) {
+                    val line = reader.readLine() ?: break
+                    try {
+                        val j = org.json.JSONObject(line)
+                        val newWidth = j.getInt("width")
+                        val newHeight = j.getInt("height")
+                        if (newWidth != width || newHeight != height) {
+                            restartCodec(newWidth, newHeight)
+                        }
+                    } catch (e: Exception) { Log.e("ScreenCapture", "Config parse error: ${e.message}") }
                 }
-            }
-        }
+            } catch (e: Exception) { Log.d("ScreenCapture", "Config thread ended: ${e.message}") }
+        }.start()
 
-        var outputStream = connect()
         val bufferInfo = MediaCodec.BufferInfo()
 
         while (true) {
+            if (restarting) { Thread.sleep(50); continue }
             val index = mediaCodec!!.dequeueOutputBuffer(bufferInfo, 10000)
             if (index >= 0) {
                 val buffer = mediaCodec!!.getOutputBuffer(index)!!
@@ -134,10 +169,39 @@ class ScreenCaptureService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onDestroy() {
-        mediaCodec?.stop()
-        mediaCodec?.release()
-        virtualDisplay?.release()
-        mediaProjection?.stop()
-        socket?.close()
+        try { mediaCodec?.stop() } catch (e: Exception) {}
+        try { mediaCodec?.release() } catch (e: Exception) {}
+        mediaCodec = null
+        try { virtualDisplay?.release() } catch (e: Exception) {}
+        virtualDisplay = null
+        try { mediaProjection?.stop() } catch (e: Exception) {}
+        try { socket?.close() } catch (e: Exception) {}
+    }
+
+    private fun restartCodec(width: Int, height: Int) {
+        restarting = true
+        Thread.sleep(100)
+
+        try { mediaCodec?.stop() } catch (e: Exception) {}
+        try { mediaCodec?.release() } catch (e: Exception) {}
+        mediaCodec = null
+
+        val format = MediaFormat.createVideoFormat(MediaFormat.MIMETYPE_VIDEO_AVC, width, height).apply {
+            val bitrate = when { width >= 1920 -> 4_000_000; width >= 1280 -> 2_000_000; else -> 1_000_000 }
+            setInteger(MediaFormat.KEY_BIT_RATE, bitrate)
+            setInteger(MediaFormat.KEY_FRAME_RATE, 30)
+            setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 0)
+            setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface)
+            setInteger(MediaFormat.KEY_PREPEND_HEADER_TO_SYNC_FRAMES, 1)
+        }
+        mediaCodec = MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_VIDEO_AVC).apply {
+            configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
+        }
+        val inputSurface = mediaCodec!!.createInputSurface()
+        mediaCodec!!.start()
+        // REUSE virtualDisplay, just resize it
+        virtualDisplay!!.resize(width, height, 320)
+        virtualDisplay!!.surface = inputSurface
+        restarting = false
     }
 }

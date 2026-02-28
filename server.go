@@ -195,6 +195,7 @@ func (s *Server) stopCapture() {
 }
 
 func (s *Server) Start() {
+	http.HandleFunc("/api/setres", s.handleSetRes)
 	http.HandleFunc("/api/connect", s.handleConnect)
 	http.HandleFunc("/api/disconnect", s.handleDisconnect)
 	http.HandleFunc("/api/status", s.handleStatus)
@@ -203,4 +204,19 @@ func (s *Server) Start() {
 
 	fmt.Printf("HTTP server on http://127.0.0.1:%d\n", httpPort)
 	http.ListenAndServe(fmt.Sprintf("127.0.0.1:%d", httpPort), nil)
+}
+
+func (s *Server) handleSetRes(w http.ResponseWriter, r *http.Request) {
+    res := r.URL.Query().Get("res")
+    switch res {
+    case "1080": s.width, s.height = 1920, 1080
+    case "480": s.width, s.height = 854, 480
+    default: s.width, s.height = 1280, 720
+    }
+    if s.conn != nil {
+        config := fmt.Sprintf("{\"width\":%d,\"height\":%d}\n", s.width, s.height)
+        s.conn.Write([]byte(config))
+    }
+    w.Header().Set("Content-Type", "application/json")
+    w.Write([]byte(`{"ok":true}`))
 }
