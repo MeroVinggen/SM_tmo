@@ -297,6 +297,7 @@
       max-height: 100%;
     }
   </style>
+  <script src="./qrcode.min.js"></script>
 </head>
 
 <body>
@@ -350,11 +351,12 @@
   <div id="pair-overlay">
     <div id="pair-modal">
       <h2>Pair New Device</h2>
+      <div id="pair-qr"></div>
       <div id="pair-code">------</div>
       <p>Enter this code in the Screen Mirror app on your Android device, or scan the QR code. Make sure the device is
         connected via USB.</p>
       <div class="modal-actions">
-        <button class="tb-btn" onclick="closePair()">Cancel</button>
+        <button class="tb-btn" onclick="closePair()">Close</button>
       </div>
     </div>
   </div>
@@ -434,13 +436,15 @@
 
     // ── Pairing ────────────────────────────────────────────────────────────────
 
-    async function openPair () {
-      document.getElementById('pair-overlay').classList.add('open');
-      await fetch('/api/pair/ready', { method: 'POST' });
-      fetch('/api/pair/code').then(r => r.json()).then(d => {
-        document.getElementById('pair-code').textContent = d.code;
-      });
-    }
+    async function openPair() {
+        document.getElementById('pair-overlay').classList.add('open');
+        await fetch('/api/pair/ready', { method: 'POST' });
+        fetch('/api/pair/code').then(r => r.json()).then(d => {
+          document.getElementById('pair-code').textContent = d.code;
+          document.getElementById('pair-qr').innerHTML = '';
+          new QRCode(document.getElementById('pair-qr'), { text: d.code, width: 160, height: 160 });
+        });
+      }
 
     function closePair() {
       document.getElementById('pair-overlay').classList.remove('open');

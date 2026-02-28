@@ -12,6 +12,7 @@ import android.webkit.WebView
 import androidx.activity.ComponentActivity
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
+import com.google.zxing.integration.android.IntentIntegrator
 import okhttp3.FormBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -108,6 +109,15 @@ class MainActivity : ComponentActivity() {
                 "{\"ok\":false,\"msg\":\"${e.message}\"}"
             }
         }
+
+        @JavascriptInterface
+        fun startQrScan() {
+            runOnUiThread {
+                val integrator = IntentIntegrator(this@MainActivity)
+                integrator.setOrientationLocked(false)
+                integrator.initiateScan()
+            }
+        }
     }
 
     private fun savePairedDevice(id: String, name: String) {
@@ -145,5 +155,16 @@ class MainActivity : ComponentActivity() {
     override fun onDestroy() {
         super.onDestroy()
         unregisterReceiver(statusReceiver)
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        val result = IntentIntegrator.parseActivityResult(requestCode, resultCode, data)
+        if (result?.contents != null) {
+            runOnUiThread {
+                webView.evaluateJavascript("document.getElementById('code-input').value='${result.contents}';", null)
+            }
+        } else {
+            super.onActivityResult(requestCode, resultCode, data)
+        }
     }
 }
