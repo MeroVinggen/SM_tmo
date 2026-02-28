@@ -11,7 +11,6 @@ import (
 )
 
 const (
-	androidPort = 15557
 	httpPort    = 8080
 	bufSize     = 65536
 )
@@ -23,6 +22,7 @@ type Server struct {
 	listener   net.Listener
 	wsClients  map[*websocket.Conn]bool
 	stopStream chan struct{}
+	androidPort int
 	width      int
 	height     int
 }
@@ -115,17 +115,21 @@ func (s *Server) broadcastToWS(data []byte) {
 }
 
 func (s *Server) startCapture() {
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+			fmt.Println("Listen failed:", err)
+			return
+	}
+	s.androidPort = listener.Addr().(*net.TCPAddr).Port
 	cmd := exec.Command("adb", "reverse",
-		fmt.Sprintf("tcp:%d", androidPort),
-		fmt.Sprintf("tcp:%d", androidPort),
+			"tcp:15557",
+			fmt.Sprintf("tcp:%d", s.androidPort),
 	)
 	if err := cmd.Run(); err != nil {
-		fmt.Println("ADB reverse failed:", err)
-		return
+			fmt.Println("ADB reverse failed:", err)
+			return
 	}
 	fmt.Println("ADB reverse tunnel active")
-
-	listener, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", androidPort))
 	if err != nil {
 		fmt.Println("Listen failed:", err)
 		return
